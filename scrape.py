@@ -180,8 +180,8 @@ def extract_number_of_pages(soup):
     """
     Extract the number of result pages from a result page.
     """
-    pager_span = soup.find('span', class_='smallPager')
-    return int(pager_span.string.split()[-1])
+    pager_options = soup.find(id="pageSelection").find_all('option')
+    return int(pager_options[-1].string.split()[0])
 
 
 def rate_limited(calls=1, seconds=1):
@@ -346,7 +346,7 @@ if __name__ == '__main__':
         while (not num_pages) or (page_index <= num_pages):
             logger.info("Fetching page %d" % page_index)
             page = get_page(page_index)
-            num_pages = num_pages or extract_number_of_pages(page)
+            num_pages = extract_number_of_pages(page)
             listings = extract_listings(page)
             new_count = store_listings(db, listings)
             logger.info("Extracted %d listings (%d new)" % (len(listings),
