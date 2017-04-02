@@ -129,7 +129,7 @@ def parse_address(address):
     """
     Parse an address string into street, house number, and suburb.
     """
-    fields = [s.strip() for s in address.split(',')]
+    fields = [s.strip() for s in address.split(', ')]
     if len(fields) == 2:
         street = None
         number = None
@@ -148,23 +148,24 @@ def extract_listings(soup):
     Returns a dict that maps listing IDs to listing details.
     """
     listings = {}
-    for div in soup.find_all('div', class_='resultlist_entry_data'):
-        for a in div.find_all('a'):
+    for entry in soup.find_all('article', class_="result-list-entry"):
+        for a in entry.find_all('a'):
             if a.get('href', '').startswith('/expose/'):
                 listing_id = a.get('href').split('/')[-1]
                 break
         else:
             # Couldn't find listing's ID
             continue
-        street_span = div.find('span', class_='street')
+        street_span = entry.find('div', class_='result-list-entry__address').find('span').contents[0]
         if not street_span:
             continue
         street, number, suburb = parse_address(unicode(street_span.string))
-        for dd in div.find_all('dd', class_='value'):
+        for dl in entry.find_all('dl', class_='result-list-entry__primary-criterion'):
+            dd = dl.find('dd')
             content = unicode(dd.string).strip()
-            if content.endswith('€'):
+            if content.endswith(' €'):
                 rent = parse_german_float(content.split()[0])
-            elif content.endswith('m²'):
+            elif content.endswith(' m²'):
                 area = parse_german_float(content.split()[0])
         listings[listing_id] = {
             'street': street,
@@ -173,6 +174,7 @@ def extract_listings(soup):
             'rent': rent,
             'area': area,
         }
+        print(listings)
     return listings
 
 
