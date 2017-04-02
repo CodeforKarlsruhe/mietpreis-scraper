@@ -22,7 +22,7 @@
 # THE SOFTWARE.
 
 """
-Scraper for renting costs in Karlsruhe.
+Scraper for renting costs in German Cities.
 """
 
 from __future__ import division, unicode_literals
@@ -47,7 +47,7 @@ from geopy.geocoders import Nominatim
 # Immobilienscout24 URLs for listings in Karlsruhe
 BASE_URL = 'http://www.immobilienscout24.de/Suche/S-T/Wohnung-Miete/Baden-Wuerttemberg/Karlsruhe'
 PAGE_URL = 'http://www.immobilienscout24.de/Suche/S-T/P-%d/Wohnung-Miete/Baden-Wuerttemberg/Karlsruhe?pagerReporting=true'
-
+CITY = 'Karlsruhe'
 
 @contextlib.contextmanager
 def prepare_database(filename):
@@ -364,7 +364,7 @@ if __name__ == '__main__':
         updates = []
         for row in c:
             id, street, number, suburb = row
-            address = '%s %s, %s, Karlsruhe' % (street, number, suburb)
+            address = '%s %s, %s, %s' % (street, number, suburb, CITY)
             coordinates = get_coordinates(address)
             if coordinates[0] is not None:
                 updates.append((coordinates[0], coordinates[1], id))
