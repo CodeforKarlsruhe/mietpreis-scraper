@@ -22,7 +22,7 @@
 # THE SOFTWARE.
 
 """
-Scraper for renting costs in Karlsruhe.
+Scraper for renting costs in German Cities.
 """
 
 from __future__ import division, unicode_literals
@@ -47,7 +47,7 @@ from geopy.geocoders import Nominatim
 # Immobilienscout24 URLs for listings in Karlsruhe
 BASE_URL = 'http://www.immobilienscout24.de/Suche/S-T/Wohnung-Miete/Baden-Wuerttemberg/Karlsruhe'
 PAGE_URL = 'http://www.immobilienscout24.de/Suche/S-T/P-%d/Wohnung-Miete/Baden-Wuerttemberg/Karlsruhe?pagerReporting=true'
-
+CITY = 'Karlsruhe'
 
 @contextlib.contextmanager
 def prepare_database(filename):
@@ -129,7 +129,7 @@ def parse_address(address):
     """
     Parse an address string into street, house number, and suburb.
     """
-    fields = [s.strip() for s in address.split(',')]
+    fields = [s.strip() for s in address.split(', ')]
     if len(fields) == 2:
         street = None
         number = None
@@ -148,23 +148,24 @@ def extract_listings(soup):
     Returns a dict that maps listing IDs to listing details.
     """
     listings = {}
-    for div in soup.find_all('div', class_='resultlist_entry_data'):
-        for a in div.find_all('a'):
+    for entry in soup.find_all('article', class_="result-list-entry"):
+        for a in entry.find_all('a'):
             if a.get('href', '').startswith('/expose/'):
                 listing_id = a.get('href').split('/')[-1]
                 break
         else:
             # Couldn't find listing's ID
             continue
-        street_span = div.find('span', class_='street')
+        street_span = entry.find('div', class_='result-list-entry__address').find('span').contents[0]
         if not street_span:
             continue
         street, number, suburb = parse_address(unicode(street_span.string))
-        for dd in div.find_all('dd', class_='value'):
+        for dl in entry.find_all('dl', class_='result-list-entry__primary-criterion'):
+            dd = dl.find('dd')
             content = unicode(dd.string).strip()
-            if content.endswith('€'):
+            if content.endswith(' €'):
                 rent = parse_german_float(content.split()[0])
-            elif content.endswith('m²'):
+            elif content.endswith(' m²'):
                 area = parse_german_float(content.split()[0])
         listings[listing_id] = {
             'street': street,
@@ -173,6 +174,7 @@ def extract_listings(soup):
             'rent': rent,
             'area': area,
         }
+        print(listings)
     return listings
 
 
@@ -180,8 +182,8 @@ def extract_number_of_pages(soup):
     """
     Extract the number of result pages from a result page.
     """
-    pager_span = soup.find('span', class_='smallPager')
-    return int(pager_span.string.split()[-1])
+    pager_options = soup.find(id="pageSelection").find_all('option')
+    return int(pager_options[-1].string.split()[0])
 
 
 def rate_limited(calls=1, seconds=1):
@@ -346,7 +348,7 @@ if __name__ == '__main__':
         while (not num_pages) or (page_index <= num_pages):
             logger.info("Fetching page %d" % page_index)
             page = get_page(page_index)
-            num_pages = num_pages or extract_number_of_pages(page)
+            num_pages = extract_number_of_pages(page)
             listings = extract_listings(page)
             new_count = store_listings(db, listings)
             logger.info("Extracted %d listings (%d new)" % (len(listings),
@@ -362,7 +364,7 @@ if __name__ == '__main__':
         updates = []
         for row in c:
             id, street, number, suburb = row
-            address = '%s %s, %s, Karlsruhe' % (street, number, suburb)
+            address = '%s %s, %s, %s' % (street, number, suburb, CITY)
             coordinates = get_coordinates(address)
             if coordinates[0] is not None:
                 updates.append((coordinates[0], coordinates[1], id))
